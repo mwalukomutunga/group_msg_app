@@ -49,17 +49,46 @@ if (!env.isTest()) {
 // Database connection status tracking
 let databaseStatus = 'disconnected';
 
+// Add Vercel-specific database connection middleware
+if (process.env.VERCEL) {
+  app.use(async (req, res, next) => {
+    // Connect to database on first request if we're in Vercel and not connected
+    if (databaseStatus === 'pending' || databaseStatus === 'disconnected') {
+      logger.info('🔄 Connecting to database on first request in Vercel environment');
+      try {
+        await database.connect();
+        databaseStatus = 'connected';
+        logger.info('✅ Database connected successfully in Vercel environment');
+      } catch (error) {
+        databaseStatus = 'error';
+        logger.error('❌ Failed to connect to database in Vercel environment:', { message: error.message });
+        // Don't fail the request, continue and let the API handle potential DB errors
+      }
+    }
+    next();
+  });
+}
+
 // Connect to database if not in test mode
 if (!env.isTest()) {
-  database.connect()
-    .then(() => {
-      databaseStatus = 'connected';
-      logger.info('✅ Application initialization complete');
-    })
-    .catch((error) => {
-      databaseStatus = 'error';
-      logger.error('❌ Failed to initialize database:', { message: error.message });
-    });
+  // For Vercel, we need to ensure database connection handling is compatible with serverless
+  if (process.env.VERCEL) {
+    // In Vercel, connection will be handled lazily on first request
+    // This prevents connection issues during cold starts
+    logger.info('🔄 Running in Vercel environment, database will connect on first request');
+    databaseStatus = 'pending';
+  } else {
+    // Standard connection for non-serverless environments
+    database.connect()
+      .then(() => {
+        databaseStatus = 'connected';
+        logger.info('✅ Application initialization complete');
+      })
+      .catch((error) => {
+        databaseStatus = 'error';
+        logger.error('❌ Failed to initialize database:', { message: error.message });
+      });
+  }
 } else {
   databaseStatus = 'connected';
 }
@@ -130,13 +159,14 @@ const PORT = env.get('PORT');
 // Create HTTP server from Express app
 const server = http.createServer(app);
 
-// Initialize Socket.io and attach to HTTP server
+// Initialize Socket.io and attach to HTTP server only in non-Vercel environments
 let io;
-if (!env.isTest()) {
+if (!env.isTest() && !process.env.VERCEL) {
   io = initializeSocketServer(server);
 }
 
-if (!env.isTest()) {
+// Only start the server in non-Vercel environments
+if (!env.isTest() && !process.env.VERCEL) {
   // Use server.listen instead of app.listen
   server.listen(PORT, () => {
     logger.info(`🚀 Group Messaging Backend server running on port ${PORT}`);
@@ -166,5 +196,13 @@ if (!env.isTest()) {
   });
 }
 
-// Export for testing
-module.exports = { app, server, io };
+// Conditional export based on environment
+// For Vercel, export the Express app instance directly
+// For local development and testing, export the full object
+if (process.env.VERCEL) {
+  // Export Express app for Vercel serverless deployment
+  module.exports = app;
+} else {
+  // Export for testing and local development
+  module.exports = { app, server, io };
+}
