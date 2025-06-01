@@ -93,36 +93,35 @@ if (!env.isTest()) {
   databaseStatus = 'connected';
 }
 
-// Set up Swagger docs in non-production environments
-if (!env.isProduction()) {
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
-    customCss: '.swagger-ui .topbar { display: none }',
-    customSiteTitle: 'Group Messaging API Documentation',
-    swaggerOptions: {
-      persistAuthorization: true,
-      tryItOutEnabled: true,
-      onComplete: function() {
-        // Fix for Swagger UI Bearer token handling
-        const oldAuthorize = this.authActions.authorize;
-        this.authActions.authorize = function (credentials) {
-          const newAuth = JSON.parse(JSON.stringify(credentials));
-          
-          // Add Bearer prefix if not already present for our BearerAuth scheme
-          if (newAuth.BearerAuth && newAuth.BearerAuth.value && !newAuth.BearerAuth.value.startsWith('Bearer ')) {
-            newAuth.BearerAuth.value = `Bearer ${newAuth.BearerAuth.value}`;
-          }
-          
-          return oldAuthorize(newAuth);
-        };
-      },
+// Set up Swagger docs in all environments
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'Group Messaging API Documentation',
+  swaggerOptions: {
+    persistAuthorization: true,
+    tryItOutEnabled: true,
+    onComplete: function() {
+      // Fix for Swagger UI Bearer token handling
+      const oldAuthorize = this.authActions.authorize;
+      this.authActions.authorize = function (credentials) {
+        const newAuth = JSON.parse(JSON.stringify(credentials));
+        
+        // Add Bearer prefix if not already present for our BearerAuth scheme
+        if (newAuth.BearerAuth && newAuth.BearerAuth.value && !newAuth.BearerAuth.value.startsWith('Bearer ')) {
+          newAuth.BearerAuth.value = `Bearer ${newAuth.BearerAuth.value}`;
+        }
+        
+        return oldAuthorize(newAuth);
+      };
     },
-  }));
+  },
+}));
 
-  if (env.isDevelopment()) {
-    app.get('/', (req, res) => {
-      res.redirect('/api-docs');
-    });
-  }
+// Only redirect root to API docs in development
+if (env.isDevelopment()) {
+  app.get('/', (req, res) => {
+    res.redirect('/api-docs');
+  });
 }
 
 // Health check endpoint
@@ -172,9 +171,7 @@ if (!env.isTest() && !process.env.VERCEL) {
     logger.info(`🚀 Group Messaging Backend server running on port ${PORT}`);
     logger.info(`📍 Environment: ${env.get('NODE_ENV')}`);
     logger.info(`🔗 Health check available at: http://localhost:${PORT}/health`);
-    if (!env.isProduction()) {
-      logger.info(`📚 API Documentation available at: http://localhost:${PORT}/api-docs`);
-    }
+    logger.info(`📚 API Documentation available at: http://localhost:${PORT}/api-docs`);
     logger.info('🔌 Real-time messaging enabled: WebSocket server active');
   });
 
