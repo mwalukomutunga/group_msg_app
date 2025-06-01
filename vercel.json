@@ -9,6 +9,42 @@
   ],
   "routes": [
     {
+      "src": "/api-docs/(.*\\.css)",
+      "headers": {
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "text/css"
+      },
+      "dest": "src/app.js"
+    },
+    {
+      "src": "/api-docs/(.*\\.js)",
+      "headers": {
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/javascript"
+      },
+      "dest": "src/app.js"
+    },
+    {
+      "src": "/api-docs/(.*\\.png)",
+      "headers": {
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "image/png"
+      },
+      "dest": "src/app.js"
+    },
+    {
+      "src": "/api-docs/(.*\\.json)",
+      "headers": {
+        "cache-control": "public, max-age=31536000, immutable",
+        "content-type": "application/json"
+      },
+      "dest": "src/app.js"
+    },
+    {
+      "src": "/api-docs/(.*)",
+      "dest": "src/app.js"
+    },
+    {
       "src": "/(.*)",
       "dest": "src/app.js"
     }

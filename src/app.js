@@ -30,7 +30,10 @@ if (!env.isTest()) {
 }
 
 // Configure middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+}));
 // Configure CORS with support for multiple origins
 const corsOrigins = env.get('CORS_ORIGIN');
 const corsOptions = {
