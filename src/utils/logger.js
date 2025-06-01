@@ -1,6 +1,7 @@
 const winston = require('winston');
 const path = require('path');
 const env = require('../config/environment');
+const fs = require('fs');
 
 // Define log levels with corresponding colors and priority
 const levels = {
@@ -22,6 +23,9 @@ const colors = {
 
 // Add colors to Winston
 winston.addColors(colors);
+
+// Check if running on Vercel
+const isVercel = process.env.VERCEL === '1';
 
 // Define format based on environment
 const getFormat = () => {
@@ -54,17 +58,27 @@ const getTransports = () => {
     new winston.transports.Console(),
   ];
 
-  // Add file transports in production
-  if (env.isProduction()) {
-    transports.push(
-      new winston.transports.File({
-        filename: path.join('logs', 'error.log'),
-        level: 'error',
-      }),
-      new winston.transports.File({
-        filename: path.join('logs', 'combined.log'),
-      }),
-    );
+  // Add file transports in production, but only if not on Vercel
+  if (env.isProduction() && !isVercel) {
+    // Ensure logs directory exists
+    try {
+      if (!fs.existsSync('logs')) {
+        fs.mkdirSync('logs');
+      }
+      
+      transports.push(
+        new winston.transports.File({
+          filename: path.join('logs', 'error.log'),
+          level: 'error',
+        }),
+        new winston.transports.File({
+          filename: path.join('logs', 'combined.log'),
+        }),
+      );
+    } catch (error) {
+      console.error('Failed to set up file logging:', error.message);
+      // Continue with console logging only
+    }
   }
 
   return transports;
