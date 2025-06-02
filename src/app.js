@@ -97,7 +97,10 @@ if (!env.isTest()) {
 }
 
 // Set up Swagger docs in all environments
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
+app.use('/api-docs', (req, res, next) => {
+  res.setHeader('Content-Type', 'text/html');
+  next();
+}, swaggerUi.serve, swaggerUi.setup(specs, {
   customCss: '.swagger-ui .topbar { display: none }',
   customSiteTitle: 'Group Messaging API Documentation',
   swaggerOptions: {
