@@ -5,18 +5,15 @@ const cors = require('cors');
 const morgan = require('morgan');
 const logger = require('./utils/logger');
 
-// Configure dependency injection first
 const configureDependencies = require('./config/dependencies');
 const container = configureDependencies();
 
-// Get dependencies from the container
 const env = container.get('env');
 const database = container.get('database');
 const { specs, swaggerUi } = require('./config/swagger');
 
 const { globalErrorHandler, notFoundHandler, requestId } = require('./middleware/errorHandler');
 
-// Routes
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
 const groupRoutes = require('./routes/group');
@@ -24,17 +21,17 @@ const messageRoutes = require('./routes/message');
 
 const app = express();
 
-// Print environment summary if not in test
+// Trust proxy for Elastic Beanstalk load balancer
+app.set('trust proxy', 1);
 if (!env.isTest()) {
   env.printSummary();
 }
 
-// Configure middleware
 app.use(helmet({
-  contentSecurityPolicy: false,
+  contentSecurityPolicy: false, 
   crossOriginEmbedderPolicy: false,
 }));
-// Configure CORS with support for multiple origins
+
 const corsOrigins = env.get('CORS_ORIGIN');
 const corsOptions = {
   origin: corsOrigins === '*' ? '*' : corsOrigins.split(','),
@@ -49,88 +46,27 @@ if (!env.isTest()) {
   app.use(morgan('combined'));
 }
 
-// Database connection status tracking
 let databaseStatus = 'disconnected';
 
-// Add Vercel-specific database connection middleware
-if (process.env.VERCEL) {
-  app.use(async (req, res, next) => {
-    // Connect to database on first request if we're in Vercel and not connected
-    if (databaseStatus === 'pending' || databaseStatus === 'disconnected') {
-      logger.info('🔄 Connecting to database on first request in Vercel environment');
-      try {
-        await database.connect();
-        databaseStatus = 'connected';
-        logger.info('✅ Database connected successfully in Vercel environment');
-      } catch (error) {
-        databaseStatus = 'error';
-        logger.error('❌ Failed to connect to database in Vercel environment:', { message: error.message });
-        // Don't fail the request, continue and let the API handle potential DB errors
-      }
-    }
-    next();
-  });
-}
-
-// Connect to database if not in test mode
 if (!env.isTest()) {
-  // For Vercel, we need to ensure database connection handling is compatible with serverless
-  if (process.env.VERCEL) {
-    // In Vercel, connection will be handled lazily on first request
-    // This prevents connection issues during cold starts
-    logger.info('🔄 Running in Vercel environment, database will connect on first request');
-    databaseStatus = 'pending';
-  } else {
-    // Standard connection for non-serverless environments
-    database.connect()
-      .then(() => {
-        databaseStatus = 'connected';
-        logger.info('✅ Application initialization complete');
-      })
-      .catch((error) => {
-        databaseStatus = 'error';
-        logger.error('❌ Failed to initialize database:', { message: error.message });
-      });
-  }
+  database.connect()
+    .then(() => {
+      databaseStatus = 'connected';
+      logger.info('✅ Application initialization complete');
+    })
+    .catch((error) => {
+      databaseStatus = 'error';
+      logger.error('❌ Failed to initialize database:', { message: error.message });
+    });
 } else {
   databaseStatus = 'connected';
 }
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
-// Set up Swagger docs in all environments
-app.use('/api-docs', (req, res, next) => {
-  res.setHeader('Content-Type', 'text/html');
-  next();
-}, swaggerUi.serve, swaggerUi.setup(specs, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'Group Messaging API Documentation',
-  swaggerOptions: {
-    persistAuthorization: true,
-    tryItOutEnabled: true,
-    onComplete: function() {
-      // Fix for Swagger UI Bearer token handling
-      const oldAuthorize = this.authActions.authorize;
-      this.authActions.authorize = function (credentials) {
-        const newAuth = JSON.parse(JSON.stringify(credentials));
-        
-        // Add Bearer prefix if not already present for our BearerAuth scheme
-        if (newAuth.BearerAuth && newAuth.BearerAuth.value && !newAuth.BearerAuth.value.startsWith('Bearer ')) {
-          newAuth.BearerAuth.value = `Bearer ${newAuth.BearerAuth.value}`;
-        }
-        
-        return oldAuthorize(newAuth);
-      };
-    },
-  },
-}));
+app.get('/', (req, res) => {
+  res.redirect('/api-docs');
+});
 
-// Only redirect root to API docs in development
-if (env.isDevelopment()) {
-  app.get('/', (req, res) => {
-    res.redirect('/api-docs');
-  });
-}
-
-// Health check endpoint
 app.get('/health', (req, res) => {
   const dbStatus = env.isTest() ? 'test' : (database.isConnected() ? 'connected' : databaseStatus);
 
@@ -146,33 +82,25 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/groups', groupRoutes);
 app.use('/api/v1/messages', messageRoutes);
 
-// Error handling
 app.use('*', notFoundHandler);
 app.use(globalErrorHandler);
 
-// Import Socket.io setup
 const { initializeSocketServer } = require('./realtime/socket');
-
 const PORT = env.get('PORT');
 
-// Create HTTP server from Express app
 const server = http.createServer(app);
 
-// Initialize Socket.io and attach to HTTP server only in non-Vercel environments
 let io;
-if (!env.isTest() && !process.env.VERCEL) {
+if (!env.isTest()) {
   io = initializeSocketServer(server);
 }
 
-// Only start the server in non-Vercel environments
-if (!env.isTest() && !process.env.VERCEL) {
-  // Use server.listen instead of app.listen
+if (!env.isTest()) {
   server.listen(PORT, () => {
     logger.info(`🚀 Group Messaging Backend server running on port ${PORT}`);
     logger.info(`📍 Environment: ${env.get('NODE_ENV')}`);
@@ -181,7 +109,7 @@ if (!env.isTest() && !process.env.VERCEL) {
     logger.info('🔌 Real-time messaging enabled: WebSocket server active');
   });
 
-  // Graceful shutdown
+  // Graceful shutdown handlers
   process.on('SIGTERM', async () => {
     logger.info('SIGTERM received, shutting down gracefully...');
     server.close(async () => {
@@ -199,13 +127,4 @@ if (!env.isTest() && !process.env.VERCEL) {
   });
 }
 
-// Conditional export based on environment
-// For Vercel, export the Express app instance directly
-// For local development and testing, export the full object
-if (process.env.VERCEL) {
-  // Export Express app for Vercel serverless deployment
-  module.exports = app;
-} else {
-  // Export for testing and local development
-  module.exports = { app, server, io };
-}
+module.exports = { app, server, io };

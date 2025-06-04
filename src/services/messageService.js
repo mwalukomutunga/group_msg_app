@@ -14,7 +14,7 @@ const logger = require('../utils/logger');
  * @returns {Object} The message service methods
  */
 module.exports = function(container) {
-  // Get dependencies from the container
+
   const Message = container.get('messageModel');
   const Group = container.get('groupModel');
   const encryptionUtils = container.get('encryptionUtils');
@@ -39,7 +39,7 @@ module.exports = function(container) {
    */
   async function sendMessage(userId, groupId, content) {
     try {
-      // Check if group exists and user is a member
+
       const group = await Group.findById(groupId);
 
       if (!group) {
@@ -53,12 +53,12 @@ module.exports = function(container) {
         );
       }
 
-      // Validate content
+
       if (!content || content.trim().length === 0) {
         throw new ValidationError('Message content cannot be empty', 'EMPTY_MESSAGE');
       }
 
-      // Encrypt the message content
+
       const encryptionResult = encryptionUtils.encryptMessage(content);
 
       // Create and save the message

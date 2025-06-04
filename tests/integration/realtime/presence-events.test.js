@@ -15,7 +15,7 @@ const { initializeSocketServer } = require('../../../src/realtime/socket');
 
 describe('Socket.io Presence Events', () => {
   // Increase Jest timeout for socket tests
-  jest.setTimeout(15000); // 15 seconds
+  jest.setTimeout(60000); // 60 seconds
   
   let testUser1;
   let testUser2;
@@ -175,7 +175,7 @@ describe('Socket.io Presence Events', () => {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('Connection timed out'));
-      }, 5000);
+      }, 30000);
       
       socket.on('connect', () => {
         // Socket.IO connected, now wait for our custom event

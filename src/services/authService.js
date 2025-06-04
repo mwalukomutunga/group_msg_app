@@ -14,7 +14,7 @@ const logger = require('../utils/logger');
  * @returns {Object} The auth service methods
  */
 module.exports = function(container) {
-  // Get dependencies from the container
+
   const User = container.get('userModel');
   const { generateToken } = container.get('jwtUtils');
   const { validateRegistration, validateLogin } = container.get('validationUtils');
@@ -35,7 +35,7 @@ module.exports = function(container) {
    * @throws {InternalError} If there's a database error
    */
   async function register(userData) {
-    // Validate registration data
+
     const { error, value, isValid } = validateRegistration(userData);
 
     if (!isValid) {
@@ -70,7 +70,7 @@ module.exports = function(container) {
       savedUser = await Promise.race([
         user.save(),
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('User save operation timed out')), 8000),
+          setTimeout(() => reject(new Error('User save operation timed out')), 15000),
         ),
       ]);
     } catch (saveError) {
@@ -84,7 +84,7 @@ module.exports = function(container) {
       }
     }
 
-    // Generate token
+
     const tokenPayload = {
       userId: savedUser._id.toString(),
       email: savedUser.email,
@@ -109,7 +109,7 @@ module.exports = function(container) {
    * @throws {InternalError} If there's a database error
    */
   async function login(credentials) {
-    // Validate login data
+
     const { error, value, isValid } = validateLogin(credentials);
 
     if (!isValid) {
@@ -124,7 +124,7 @@ module.exports = function(container) {
 
     const { email, password } = value;
 
-    // Attempt to find user with timeout handling
+
     let user;
     try {
       user = await User.findByEmail(email);
@@ -155,7 +155,7 @@ module.exports = function(container) {
       throw new AuthenticationError('Invalid email or password', 'INVALID_CREDENTIALS');
     }
 
-    // Generate token
+
     const tokenPayload = {
       userId: user._id.toString(),
       email: user.email,
@@ -210,7 +210,7 @@ module.exports = function(container) {
     throw new Error('Not implemented');
   }
 
-  // Return the service methods
+
   return {
     register,
     login,

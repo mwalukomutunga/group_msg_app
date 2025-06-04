@@ -26,7 +26,7 @@ const register = asyncErrorHandler(async (req, res, next) => {
       data: result,
     });
   } catch (error) {
-    // Handle any uncaught errors
+
     next(error);
   }
 });
@@ -48,7 +48,7 @@ const login = asyncErrorHandler(async (req, res, next) => {
       data: result,
     });
   } catch (error) {
-    // Handle any uncaught errors
+
     next(error);
   }
 });

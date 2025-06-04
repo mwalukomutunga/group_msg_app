@@ -21,15 +21,20 @@ const testDatabase = {
       
       console.log('🧪 Connecting to test database on Atlas...');
 
-      // Configure Mongoose for tests - enable buffering
-      mongoose.set('bufferCommands', true);
+      // Configure Mongoose for tests with improved settings
+      mongoose.set('bufferCommands', false);
+
       
-      // Connect mongoose to Atlas with test database
+      // Connect mongoose to Atlas with test database and improved timeouts
       await mongoose.connect(testUri, {
-        maxPoolSize: 10, // Increased pool size for tests
-        serverSelectionTimeoutMS: 10000, // Reduced timeout to fail faster if can't connect
-        socketTimeoutMS: 45000, // Increased timeout
-        bufferCommands: true // Enable command buffering
+        maxPoolSize: 10,
+        serverSelectionTimeoutMS: 30000, // Increased to 30 seconds
+        socketTimeoutMS: 60000, // Increased to 60 seconds
+        connectTimeoutMS: 30000, // Increased to 30 seconds
+        bufferCommands: false,
+
+        retryWrites: true,
+        w: 'majority'
       });
 
       console.log('✅ Test database connected to Atlas');
@@ -41,19 +46,21 @@ const testDatabase = {
 
   /**
    * Get test database URI by modifying the production URI
-   * Appends '_test' to the database name
+   * Appends '_test' and timestamp to the database name for isolation
    */
   getTestDatabaseUri(mongoUri) {
     try {
       const url = new URL(mongoUri);
       const dbName = url.pathname.slice(1); // Remove leading slash
-      const testDbName = dbName ? `${dbName}_test` : 'test_db';
+      const timestamp = Date.now();
+      const testDbName = dbName ? `${dbName}_test_${timestamp}` : `test_db_${timestamp}`;
       url.pathname = `/${testDbName}`;
       return url.toString();
     } catch (error) {
       // Fallback: just append to the URI
       const separator = mongoUri.includes('?') ? '&' : '?';
-      return `${mongoUri}${separator}dbName=test_db`;
+      const timestamp = Date.now();
+      return `${mongoUri}${separator}dbName=test_db_${timestamp}`;
     }
   },
 

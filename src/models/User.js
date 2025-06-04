@@ -69,15 +69,15 @@ userSchema.methods.toJSON = function() {
 
 userSchema.statics.findByEmail = async function(email) {
   try {
-    // Add timeout options and return immediately
+
     return await this.findOne(
       { email: email.toLowerCase() },
       {},
-      { maxTimeMS: 5000 }, // 5-second timeout
+      { maxTimeMS: 15000 }, // 15-second timeout
     ).exec();
   } catch (error) {
     if (error.name === 'MongooseError' && error.message.includes('buffering timed out')) {
-      // Return null to treat as "user not found" instead of a timeout error
+
       console.warn('Database operation timed out in findByEmail:', error.message);
       return null;
     }

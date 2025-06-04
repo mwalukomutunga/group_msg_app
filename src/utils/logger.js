@@ -3,7 +3,7 @@ const path = require('path');
 const env = require('../config/environment');
 const fs = require('fs');
 
-// Define log levels with corresponding colors and priority
+
 const levels = {
   error: 0,
   warn: 1,
@@ -12,7 +12,7 @@ const levels = {
   debug: 4,
 };
 
-// Define colors for each log level
+
 const colors = {
   error: 'red',
   warn: 'yellow',
@@ -21,20 +21,17 @@ const colors = {
   debug: 'white',
 };
 
-// Add colors to Winston
+
 winston.addColors(colors);
 
-// Check if running on Vercel
-const isVercel = process.env.VERCEL === '1';
 
-// Define format based on environment
 const getFormat = () => {
-  // Use simple format for test environment
+
   if (env.isTest()) {
     return winston.format.simple();
   }
 
-  // For production, use JSON format
+
   if (env.isProduction()) {
     return winston.format.combine(
       winston.format.timestamp(),
@@ -42,7 +39,7 @@ const getFormat = () => {
     );
   }
 
-  // For development, use colorized format with timestamp
+
   return winston.format.combine(
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
     winston.format.colorize({ all: true }),
@@ -52,14 +49,14 @@ const getFormat = () => {
   );
 };
 
-// Define which transports to use based on environment
+
 const getTransports = () => {
   const transports = [
     new winston.transports.Console(),
   ];
 
-  // Add file transports in production, but only if not on Vercel
-  if (env.isProduction() && !isVercel) {
+
+  if (env.isProduction()) {
     // Ensure logs directory exists
     try {
       if (!fs.existsSync('logs')) {

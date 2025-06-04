@@ -2,11 +2,6 @@ const swaggerJSDoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 const { config } = require('./environment');
 
-/**
- * Swagger Configuration for Group Messaging API
- * Provides interactive API documentation with authentication support
- */
-
 const swaggerDefinition = {
   openapi: '3.0.0',
   info: {
@@ -51,12 +46,13 @@ const swaggerDefinition = {
   servers: [
     {
       url: `http://localhost:${config.PORT}`,
-      description: 'Development server',
+      description: 'Test server',
     },
     {
-      url: 'https://api.groupmessaging.com',
+      url: 'http://3.86.209.78',
       description: 'Production server',
     },
+   
   ],
   components: {
     securitySchemes: {
